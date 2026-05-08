@@ -121,6 +121,32 @@ git push
 
 Also try opening/updating a pull request and creating/updating an issue.
 
+## 8) Gemini PR Review Action
+
+This repository includes `.github/workflows/pr-review.yml`, which runs on pull request events and posts an AI-generated review summary.
+
+### Configure required GitHub settings
+
+In your repository, go to **Settings -> Secrets and variables -> Actions** and add:
+
+- **Secret**: `GEMINI_API_KEY`
+- **Variable**: `GEMINI_MODEL` (example: `gemini-1.5-flash`)
+
+The model is read from `GEMINI_MODEL` at runtime (it is not hardcoded in the workflow).
+
+### Trigger the workflow
+
+1. Push a branch with changes
+2. Open a PR (or update an existing PR)
+3. Check:
+   - **Actions** tab for workflow logs
+   - PR conversation for `AI PR Review (Gemini)` comment
+
+### Notes
+
+- The workflow reviews only a bounded portion of the diff for safety/cost control.
+- If `GEMINI_API_KEY` or `GEMINI_MODEL` is missing, the workflow posts a skip message instead of failing silently.
+
 ## Troubleshooting
 
 - `401 Invalid signature`
@@ -133,6 +159,10 @@ Also try opening/updating a pull request and creating/updating an issue.
   - Update GitHub webhook payload URL with the new ngrok URL.
 - Server warning: `WEBHOOK_SECRET is not set`
   - Export the variable before running the server.
+- Workflow comment says `GEMINI_API_KEY` missing
+  - Add `GEMINI_API_KEY` under **Settings -> Secrets and variables -> Actions -> Secrets**.
+- Workflow comment says `GEMINI_MODEL` missing
+  - Add `GEMINI_MODEL` under **Settings -> Secrets and variables -> Actions -> Variables**.
 
 ## Stop / Cleanup
 

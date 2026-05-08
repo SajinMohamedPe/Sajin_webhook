@@ -23,23 +23,149 @@ jobs:
           echo "Title: ${{ github.event.pull_request.title }}"
           echo "Author: ${{ github.event.pull_request.user.login }}"
 
-      - name: Post PR comment
+      - name: Gemini PR review summary
         uses: actions/github-script@v7
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GEMINI_MODEL: ${{ vars.GEMINI_MODEL }}
         with:
           script: |
             const pr = context.payload.pull_request;
-            const body = [
-              "PR automation check passed.",
-              `- PR: #${pr.number}`,
-              `- Title: ${pr.title}`,
-              `- Author: @${pr.user.login}`,
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            if (!process.env.GEMINI_API_KEY) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: "AI review skipped: `GEMINI_API_KEY` secret is not configured."
+              });
+              return;
+            }
+
+            if (!process.env.GEMINI_MODEL) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: "AI review skipped: `GEMINI_MODEL` repository variable is not configured."
+              });
+              return;
+            }
+
+            const files = await github.paginate(
+              github.rest.pulls.listFiles,
+              { owner, repo, pull_number: pr.number, per_page: 100 }
+            );
+
+            const MAX_FILES = 25;
+            const MAX_PATCH_CHARS = 14000;
+            const ignoredExt = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".lock", ".map"];
+
+            let totalPatchChars = 0;
+            const selected = [];
+
+            for (const f of files) {
+              if (selected.length >= MAX_FILES) break;
+
+              const lower = f.filename.toLowerCase();
+              const ignoreByExt = ignoredExt.some((ext) => lower.endsWith(ext));
+              if (ignoreByExt) continue;
+              if (!f.patch) continue;
+
+              const nextSize = totalPatchChars + f.patch.length;
+              if (nextSize > MAX_PATCH_CHARS) break;
+
+              selected.push({
+                filename: f.filename,
+                status: f.status,
+                additions: f.additions,
+                deletions: f.deletions,
+                patch: f.patch
+              });
+              totalPatchChars = nextSize;
+            }
+
+            if (selected.length === 0) {
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: pr.number,
+                body: "AI review skipped: no suitable text diff found (or PR is too large/binary-only)."
+              });
+              return;
+            }
+
+            const changedText = selected.map((f) => [
+              `FILE: ${f.filename}`,
+              `STATUS: ${f.status} | +${f.additions} -${f.deletions}`,
+              "PATCH:",
+              f.patch
+            ].join("\n")).join("\n\n---\n\n");
+
+            const prompt = [
+              "You are a senior code reviewer.",
+              "Review this pull request diff and produce a concise developer-focused review.",
+              "Focus on correctness, bugs, security, edge-cases, and test gaps.",
+              "Do not invent details not present in the diff.",
+              "Respond in markdown with sections exactly:",
+              "## Summary",
+              "## Risks",
+              "## Security Vulnerabilities",
+              "## Suggested Tests",
+              "## Optional Improvements",
               "",
-              "_Next step: replace this with Claude/Gemini review output._"
+              `PR title: ${pr.title}`,
+              `PR author: ${pr.user.login}`,
+              "",
+              "Diff:",
+              changedText
+            ].join("\n");
+
+            const model = process.env.GEMINI_MODEL;
+            const endpoint =
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+
+            const resp = await fetch(endpoint, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{ role: "user", parts: [{ text: prompt }] }],
+                generationConfig: {
+                  temperature: 0.2,
+                  maxOutputTokens: 900
+                }
+              })
+            });
+
+            if (!resp.ok) {
+              const errorText = await resp.text();
+              core.setFailed(`Gemini API request failed: ${resp.status} ${errorText}`);
+              return;
+            }
+
+            const data = await resp.json();
+            const aiText =
+              data?.candidates?.[0]?.content?.parts
+                ?.map((p) => p.text || "")
+                .join("\n")
+                .trim() || "Gemini returned an empty response.";
+
+            const body = [
+              "## AI PR Review (Gemini)",
+              `- Model: \`${model}\``,
+              `- Files reviewed: ${selected.length}/${files.length}`,
+              `- Diff chars used: ${totalPatchChars}/${MAX_PATCH_CHARS}`,
+              "",
+              aiText,
+              "",
+              "_Automated review assistant output. Verify before applying changes._"
             ].join("\n");
 
             await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
+              owner,
+              repo,
               issue_number: pr.number,
               body
             });
