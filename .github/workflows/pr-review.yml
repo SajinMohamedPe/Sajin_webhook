@@ -133,6 +133,7 @@ jobs:
               "Rules for inline:",
               "- Only use line numbers from the CHANGED LINES list for the file",
               "- Only flag genuine bugs, security issues, or logic errors — skip style",
+              "- Keep each summary section to 2-3 sentences maximum",
               "- Maximum 5 inline comments total; use [] if nothing significant",
               "",
               `PR title: ${pr.title}`,
@@ -153,7 +154,7 @@ jobs:
                 contents: [{ role: "user", parts: [{ text: prompt }] }],
                 generationConfig: {
                   temperature: 0.2,
-                  maxOutputTokens: 4000
+                  maxOutputTokens: 8000
                 }
               })
             });
