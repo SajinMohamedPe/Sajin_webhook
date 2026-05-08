@@ -141,6 +141,31 @@ jobs:
 
             if (!resp.ok) {
               const errorText = await resp.text();
+              if (resp.status === 404) {
+                const listUrl =
+                  `https://generativelanguage.googleapis.com/v1beta/models?key=${process.env.GEMINI_API_KEY}`;
+                let hint = "";
+                try {
+                  const listResp = await fetch(listUrl);
+                  if (listResp.ok) {
+                    const listData = await listResp.json();
+                    const available = (listData.models || [])
+                      .filter((m) => Array.isArray(m.supportedGenerationMethods) &&
+                        m.supportedGenerationMethods.includes("generateContent"))
+                      .map((m) => m.name?.replace(/^models\//, ""))
+                      .slice(0, 20);
+                    if (available.length > 0) {
+                      hint = ` Available generateContent models include: ${available.join(", ")}.`;
+                    }
+                  }
+                } catch (e) {
+                  core.warning(`ListModels lookup failed: ${e.message}`);
+                }
+                core.setFailed(
+                  `Gemini model '${model}' is not available for generateContent.${hint} Update repository variable GEMINI_MODEL. Raw API error: ${errorText}`
+                );
+                return;
+              }
               core.setFailed(`Gemini API request failed: ${resp.status} ${errorText}`);
               return;
             }
