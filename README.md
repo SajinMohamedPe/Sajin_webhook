@@ -4,7 +4,7 @@ Small Flask server that receives GitHub webhooks, verifies the HMAC SHA-256 sign
 
 ## Project Structure
 
-- `../webhook_receiver.py` - webhook server
+- `webhook_receiver.py` - webhook server
 - `test-webhook.txt` - local test file
 
 ## Prerequisites
@@ -43,7 +43,7 @@ echo "$WEBHOOK_SECRET"
 ## 3) Run the Server
 
 ```bash
-python ../webhook_receiver.py
+python webhook_receiver.py
 ```
 
 If you change `WEBHOOK_SECRET`, stop and restart the Flask server so it picks up the new value.
