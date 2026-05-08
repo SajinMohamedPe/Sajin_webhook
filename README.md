@@ -133,7 +133,7 @@ In your repository, go to **Settings -> Secrets and variables -> Actions** and a
 - **Variable**: `GEMINI_MODEL` (example: `gemini-1.5-flash`)
 
 The model is read from `GEMINI_MODEL` at runtime (it is not hardcoded in the workflow).
- 
+
 ### Trigger the workflow
 
 1. Push a branch with changes
