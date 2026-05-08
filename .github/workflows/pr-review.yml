@@ -188,9 +188,10 @@ jobs:
               "_Automated review assistant output. Verify before applying changes._"
             ].join("\n");
 
-            await github.rest.issues.createComment({
+            await github.rest.pulls.createReview({
               owner,
               repo,
-              issue_number: pr.number,
-              body
+              pull_number: pr.number,
+              body,
+              event: "COMMENT"
             });
