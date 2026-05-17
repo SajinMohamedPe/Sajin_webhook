@@ -62,7 +62,7 @@ curl -i http://127.0.0.1:5000/health
 ### 4) Expose localhost with ngrok
 
 ```bash
-ngrok http 5000
+ngrok http 127.0.0.1:5000
 ```
 
 Your webhook endpoint: `https://<your-ngrok-domain>/webhook`
