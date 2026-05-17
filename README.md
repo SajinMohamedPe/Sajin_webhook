@@ -134,7 +134,7 @@ Expected response:
 - **Workflow posts raw JSON** — Gemini response was truncated; increase `maxOutputTokens` in the workflow or reduce diff size.
 - **Inline comments: 0** — Gemini didn't reference valid changed lines, or JSON parse failed (check workflow logs for the warning).
 
-## Stop / Cleanup
+## Stop / Cleanup 
 
 ```bash
 # Stop Flask or ngrok
